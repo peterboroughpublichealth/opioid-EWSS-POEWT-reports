@@ -1,0 +1,556 @@
+---
+title: "Opioid EWSS - Weekly Data Summary"
+category: "Confidential"
+author: "Peterborough Public Health"
+date: "`r Sys.Date()`"
+output: 
+  officedown::rdocx_document:
+    reference_docx: styles/Template - PPH reports - R markdown.docx
+    fig_width: 7
+    fig_height: 3
+    page_size:
+      width: 8.5
+      height: 11
+    page_margins:
+      gutter: 0
+    
+
+---
+<!--- NOTE: R setup --->
+
+```{r global-setup}
+#| echo = FALSE,
+#| include = FALSE,
+#| cache = FALSE
+
+# SETUP: R MARKDOWN ----
+#-----------------------------------------------------------------------------#
+# LOAD PACKAGES ----
+#-----------------------------------------------------------------------------#
+knitr::opts_chunk$set(echo = FALSE, fig.cap = TRUE)
+library(officedown)
+library(officer)
+library(rvg)
+library(flextable)
+fp <- fp_par(
+  text.align = "center", 
+  padding.bottom = 20, padding.top = 120, 
+  border.bottom = fp_border())
+
+ft <- fp_text(shading.color='#EFEFEF', bold = TRUE)
+
+#-----------------------------------------------------------------------------#
+# SPECIFY OUTPUT FORMATTING ----
+#-----------------------------------------------------------------------------#
+EMS_colour = "#29846b"
+ED_colour = "#57AACB"
+EWSS_colour = "#d60093"
+
+# > Summary Tables Formatting ----
+EMS_border = officer::fp_border(color = EMS_colour, width = 1)
+ED_border = officer::fp_border(color = ED_colour, width = 1)
+EWSS_border = officer::fp_border(color = EWSS_colour, width = 1)
+
+# SETUP: ANALYSES ----
+#-----------------------------------------------------------------------------#
+# LOAD PACKAGES ----
+#-----------------------------------------------------------------------------#
+library(readr)
+library(plyr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(ggplot2)
+library(rlang)
+library(tidyverse)
+library(grid)
+
+#------------------------------------------------------------------------------#
+# BACKGROUND: DATASETS ----
+#------------------------------------------------------------------------------#
+
+# EWSS Daily Counts - "EWSS_data_event_counts_weekly.rds"
+#------------------------------------------------------------------------------#
+
+# "EWSS - creating data set - event counts weekly.R" was used to create this 
+# data frame.
+
+# This data set contains aggregate counts of incidents detected by 
+# PPH's opioid Early Warning Surveillance System (EWSS) and consists of 
+# counts of EMS CFS, ED visits, and unique EWSS events by week.
+
+# There is one row in the data set for each day since 2019-04-01.
+# Week variable lists the first day of the week.
+
+#::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::#
+# Specify the location of the source script
+source_script_file <- "EWSS - creating data set - event counts weekly.R"
+source_script_folder <- "I:/Opioids/Data Analyses/"
+
+# Run the source script for the data set described above.
+source(paste0(source_script_folder, source_script_file))
+
+#-----------------------------------------------------------------------------#
+# CONFIGURE PATHS ----
+#-----------------------------------------------------------------------------#
+
+# EWSS Data
+#---------- #
+# Specify the folder where the EWSS ACES file is stored
+EWSS_folder <- "I:/Opioids/Data Analyses/Data/"
+
+# Specify the name of the EWSS file
+EWSS_file <- "EWSS_data_event_counts_weekly.rds"
+
+
+#------------------------------------------------------------------------------#
+# LOAD EWSS (.rds) DATA ----
+#------------------------------------------------------------------------------#
+
+# Open the EWSS dataset .RDS file
+EWSS_weekly <- readRDS(paste0(EWSS_folder, EWSS_file))
+
+#------------------------------------------------------------------------------#
+# DATA MANIPULATION ----
+#------------------------------------------------------------------------------#
+
+# Create a vector with the date the last week with full data began
+last_week <- max(EWSS_weekly$week[grepl("full",
+                                        EWSS_weekly$data_available)])
+
+# Create a vector with the date the week before last began
+week_before_last <- last_week - weeks(1)
+
+# Create a data frame to be used to calculate descriptive statistics of
+# historical data (excludes data from the last week)
+EWSS_weekly_subset <- subset(EWSS_weekly,
+                             week < as.Date(last_week))
+
+
+```
+
+<!--- NOTE: Line breaks to add space between header and report title --->
+<br>
+
+<br>
+
+
+<!--- NOTE: PPH Program name --->
+
+```{r program-name}
+#| echo = FALSE
+
+# Specify the location of the report image file
+img.file <- file.path( "I:/Templates - Documents", "PPH - bars.png" )
+
+# Specify the format of the program name text
+text_format <- fp_text(bold = TRUE, 
+                       font.size = 13, 
+                       font.family = "Cambria", 
+                       color = "#365f91")
+
+# Print a line (paragraph) with the report image and program name
+fpar_program <- fpar(
+  external_img(src = img.file, height = 0.2, width = 0.61),
+  ftext("Opioid EWSS", prop = text_format ),
+  fp_p = fp_par(text.align = "left") )
+
+fpar_program
+```
+
+<!--- NOTE: Document title --->
+
+# Weekly Data Summary
+
+<!--- NOTE: Published date --->
+:::{custom-style="Publication Date"}
+Published: `r gsub(" 0", " ", format(Sys.Date(), "%B %d, %Y"))`
+:::
+
+<!--- NOTE: Document body --->
+
+```{r summary-tables}
+
+#------------------------------------------------------------------------------#
+# TABLES ----
+#------------------------------------------------------------------------------#
+
+# > Calculations: EMS CFS ----
+#------------------------------------------------------------------------------#
+# Retrieve the number of EMS CFS for last week
+n_EMS_last_week <- 
+  EWSS_weekly[EWSS_weekly$week == last_week, "EMS_count"]
+
+# Retrieve the number of EMS CFS for the week before last
+n_EMS_week_before_last <- 
+  EWSS_weekly[EWSS_weekly$week == week_before_last, "EMS_count"]
+
+# Calculate the historical average for weekly EMS CFS (excluding last week)
+mean_EMS_weekly <- round(mean(EWSS_weekly_subset$EMS_count, na.rm = TRUE), 1)
+
+
+# > Calculations: ED visits ----
+#------------------------------------------------------------------------------#
+# Retrieve the number of ED visits for last week
+n_ED_last_week <- 
+  EWSS_weekly[EWSS_weekly$week == last_week, "ED_count"]
+
+# Retrieve the number of ED visits for the week before last
+n_ED_week_before_last <- 
+  EWSS_weekly[EWSS_weekly$week == week_before_last, "ED_count"]
+
+# Calculate the historical average for weekly ED visits (excluding last week)
+mean_ED_weekly <- round(mean(EWSS_weekly_subset$ED_count, na.rm = TRUE), 1)
+
+
+# > Calculations: EWSS events ----
+#------------------------------------------------------------------------------#
+# Retrieve the number of EWSS events for last week
+n_EWSS_last_week <- 
+  EWSS_weekly[EWSS_weekly$week == last_week, "EWSS_count"]
+
+# Retrieve the number of EWSS events for the week before last
+n_EWSS_week_before_last <- 
+  EWSS_weekly[EWSS_weekly$week == week_before_last, "EWSS_count"]
+
+# Calculate the historical average for weekly EWSS events (excluding last week)
+mean_EWSS_weekly <- round(mean(EWSS_weekly_subset$EWSS_count, na.rm = TRUE), 1)
+
+
+# > Table Set-Up: EMS calls ----
+#------------------------------------------------------------------------------#
+# Create a vector with summary data on EMS CFS during the last week
+EMS_last_week <- c("Last Week",
+                   paste0("(",
+                          gsub(" 0",
+                               " ",
+                               format(last_week, "%b %d")),
+                          " to ",
+                          gsub(" 0",
+                               " ",
+                               format(last_week + days(6), "%b %d")),
+                          ")"),
+                   n_EMS_last_week)
+
+# Create a vector with summary data on EMS CFS during the week before last
+EMS_week_before_last <- c("Week Before Last",
+                          paste0("(", 
+                                 gsub(" 0",
+                                      " ",
+                                      format(week_before_last, "%b %d")), 
+                                 " to ", 
+                                 gsub(" 0",
+                                      " ",
+                                      format(week_before_last + days(6), "%b %d")),
+                                 ")"),
+                          n_EMS_week_before_last)
+
+# Create a vector with the historical average EMS CFS
+EMS_historical <- c("Historical Average",
+                    "EMS CFS per week",
+                     mean_EMS_weekly)
+
+# Create a data frame with summary information on weekly EMS CFS
+EMS_weekly_summary <- data.frame(EMS_last_week,
+                                 EMS_week_before_last,
+                                 EMS_historical) %>%
+  mutate(event_type = "EMS calls") %>%
+  select(event_type, everything())
+
+# > Table Set-Up: ED visits ----
+#------------------------------------------------------------------------------#
+# Create a vector with summary data on ED visits during the last week
+ED_last_week <- c("Last Week",
+                  paste0("(",
+                         gsub(" 0",
+                              " ",
+                              format(last_week, "%b %d")),
+                         " to ",
+                         gsub(" 0",
+                              " ",
+                              format(last_week + days(6), "%b %d")),
+                         ")"),
+                  n_ED_last_week)
+
+# Create a vector with summary data on ED visits during the week before last
+ED_week_before_last <- c("Week Before Last",
+                         paste0("(", 
+                                gsub(" 0",
+                                     " ",
+                                     format(week_before_last, "%b %d")), 
+                                " to ", 
+                                gsub(" 0",
+                                     " ",
+                                     format(week_before_last + days(6), "%b %d")),
+                                ")"),
+                         n_ED_week_before_last)
+
+# Create a vector with the historical average ED visits
+ED_historical <- c("Historical Average",
+                   "ED visits per week",
+                    mean_ED_weekly)
+
+# Create a data frame with summary information on weekly ED visits
+ED_weekly_summary <- data.frame(ED_last_week,
+                                ED_week_before_last,
+                                ED_historical) %>%
+  mutate(event_type = "ED visits") %>%
+  select(event_type, everything())
+
+# > Table Set-Up: EWSS events ----
+#------------------------------------------------------------------------------#
+# Create a vector with summary data on EWSS events during the last week
+EWSS_last_week <- c("Last Week",
+                     paste0("(",
+                            gsub(" 0",
+                                 " ",
+                                format(last_week, "%b %d")),
+                            " to ",
+                            gsub(" 0",
+                                 " ",
+                                 format(last_week + days(6), "%b %d")),
+                            ")"),
+                     n_EWSS_last_week)
+
+# Create a vector with summary data on EWSS events during the week before last
+EWSS_week_before_last <- c("Week Before Last",
+                           paste0("(", 
+                                  gsub(" 0",
+                                       " ",
+                                       format(week_before_last, "%b %d")), 
+                                  " to ", 
+                                  gsub(" 0",
+                                       " ",
+                                       format(week_before_last + days(6), "%b %d")),
+                                  ")"),
+                            n_EWSS_week_before_last)
+
+# Create a vector with the historical average EWSS events
+EWSS_historical <- c("Historical Average",
+                     "EWSS events per week",
+                      mean_EWSS_weekly)
+
+# Create a data frame with summary information on weekly EWSS events
+EWSS_weekly_summary <- data.frame(EWSS_last_week,
+                                  EWSS_week_before_last,
+                                  EWSS_historical) %>%
+  mutate(event_type = "EWSS visits") %>%
+  select(event_type, everything())
+
+# > Summary Table: EMS calls ----
+#------------------------------------------------------------------------------#
+flextable(EMS_weekly_summary) %>%
+  delete_part(part = "header") %>%
+  border_remove() %>%
+  bold(i = c(1, 3)) %>%
+  fontsize(i = 2, size = 8) %>%
+  fontsize(i = 3, size = 14) %>%
+  merge_at(i = 1:3, j = 1) %>%
+  bg(j = 1, bg = EMS_colour) %>%
+  rotate(j = 1, rotation = "btlr", align = "center") %>%
+  hrule(rule = "exact")  %>%
+  border_outer(part="all", border = EMS_border )%>%
+  valign(i = 2, valign = "top") %>%
+  padding(i = 2, padding = 0) %>%
+  padding(i = 1, padding.bottom = 0, padding.top = 2) %>%
+  padding(j = 1, padding = 0) %>%
+  align(align = "center", part = "all") %>%
+  valign(i = 1, j = 2:4, valign = "bottom") %>%
+  flextable::compose(i = 1, j = 1, as_paragraph(as_chunk('EMS calls'))) %>%
+  color(j = 1, color = "#FFFFFF") %>%
+  autofit() %>%
+  width( j = 1, 0.75, unit = "in")
+
+# > Line Break ----
+#------------------------------------------------------------------------------#
+# Specify the format of line break text
+text_format <- fp_text(bold = TRUE, 
+                       font.size = 6, 
+                       font.family = "Arial", 
+                       color = "#365f91")
+
+# Print a line break (to add space between the summary tables)
+fpar_br <- fpar(
+  ftext("\n", prop = text_format ),
+  fp_p = fp_par(text.align = "left") )
+
+fpar_br
+
+
+# > Summary Table: ED visits ----
+#------------------------------------------------------------------------------#
+flextable(ED_weekly_summary) %>%
+  delete_part(part = "header") %>%
+  border_remove() %>%
+  bold(i = c(1, 3)) %>%
+  fontsize(i = 2, size = 8) %>%
+  fontsize(i = 3, size = 14) %>%
+  merge_at(i = 1:3, j = 1) %>%
+  bg(j = 1, bg = ED_colour) %>%
+  rotate(j = 1, rotation = "btlr", align = "center") %>%
+  hrule(rule = "exact")  %>%
+  border_outer(part="all", border = ED_border )%>%
+  valign(i = 2, valign = "top") %>%
+  padding(i = 2, padding = 0) %>%
+  padding(i = 1, padding.bottom = 0, padding.top = 2) %>%
+  padding(j = 1, padding = 0) %>%
+  align(align = "center", part = "all") %>%
+  valign(i = 1, j = 2:4, valign = "bottom") %>%
+  flextable::compose(i = 1, j = 1, as_paragraph(as_chunk('ED visits'))) %>%
+  color(j = 1, color = "#FFFFFF") %>%
+  autofit() %>%
+  width( j = 1, 0.75, unit = "in")
+
+# > Line Break ----
+#------------------------------------------------------------------------------#
+# Print a line break (to add space between the summary tables)
+fpar_br
+
+
+# > Summary Table: EWSS events ----
+#------------------------------------------------------------------------------#
+flextable(EWSS_weekly_summary) %>%
+  delete_part(part = "header") %>%
+  border_remove() %>%
+  bold(i = c(1, 3)) %>%
+  fontsize(i = 2, size = 8) %>%
+  fontsize(i = 3, size = 14) %>%
+  merge_at(i = 1:3, j = 1) %>%
+  bg(j = 1, bg = EWSS_colour) %>%
+  rotate(j = 1, rotation = "btlr", align = "center") %>%
+  hrule(rule = "exact")  %>%
+  border_outer(part="all", border = EWSS_border )%>%
+  valign(i = 2, valign = "top") %>%
+  padding(i = 2, padding = 0) %>%
+  padding(i = 1, padding.bottom = 0, padding.top = 2) %>%
+  padding(j = 1, padding = 0) %>%
+  align(align = "center", part = "all") %>%
+  valign(i = 1, j = 2:4, valign = "bottom") %>%
+  flextable::compose(i = 1, j = 1, as_paragraph(as_chunk('EWSS events'))) %>%
+  color(j = 1, color = "#FFFFFF") %>%
+  autofit() %>%
+  width( j = 1, 0.75, unit = "in")
+```
+
+
+## Events over the last 12 months
+```{r panel-graph}
+#| echo = FALSE, 
+#| fig.cap = paste0("Weekly number of events detected by the Opioid EWSS, week of ",
+#|                   gsub(" 0", " ", format(last_week - weeks(51), "%B %d, %Y")),
+#|                   " to week of ",
+#|                   gsub(" 0", " ", format(last_week, "%B %d, %Y")),
+#|                   "."), 
+#| fig.id = "panel-plot", 
+#| fig.cap.style="Figure Caption"
+
+#------------------------------------------------------------------------------#
+# GRAPH ----
+#------------------------------------------------------------------------------#
+## > Panel plot: events by week ----
+
+### >> Create a data frame to be used for the panel graph ----
+panel_data <- EWSS_weekly %>% 
+  pivot_longer(cols = ends_with("count"),
+               names_pattern = "(.*)_count$",
+               names_to = "event_type",
+               values_to = "n") %>%
+  subset(.,
+         week <= last_week &
+           week >= last_week - weeks(51)) %>%
+  mutate(event_type = case_when(event_type == "ED" ~ "ED visits",
+                                event_type == "EMS" ~ "EMS 911 calls",
+                                event_type == "EWSS" ~ "EWSS events")) %>%
+  mutate(event_type = factor(event_type,
+                             levels = c("EMS 911 calls",
+                                        "ED visits",
+                                        "EWSS events")))
+
+
+### >> Create a panel plot of the data ----
+panel_plot <- 
+  ggplot(data = panel_data,
+         aes(x = week,
+             y = n,
+             fill = factor(event_type))) +
+  
+  geom_col() +
+  
+  facet_grid(event_type ~ .) +
+  
+  # Specify the colours for the bars
+  scale_fill_manual(values = c( EMS_colour, ED_colour, EWSS_colour)) +
+  
+  # Specify the scale to use for the x axis
+  scale_x_date(expand = c(0.005, 0.005),
+               date_labels = "%b-%d",
+               date_breaks = "4 weeks") +
+  
+  # Specify the scale to use for the y axis
+  scale_y_continuous(expand = c(0.005, 0.1),
+                     breaks = seq(10,
+                                  round_any(max(panel_data$n) + 3,
+                                            10,
+                                            f = ceiling),
+                                  10)) +
+  expand_limits(y = c(0,
+                      round_any(max(panel_data$n) + 3,
+                                10,
+                                f = ceiling))) +
+  
+  # Specify the labels for the graph
+  labs(title = NULL,
+       subtitle = NULL,
+       x = "Week",
+       y = "Number of Events") + 
+  
+  theme_minimal() +
+  theme(plot.margin = unit(rep(0.5, 4), "cm"),
+        legend.position = "none", 
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.text = element_text(face = "plain",
+                                 color = "grey20"),
+        axis.title = element_text(face = "plain",
+                                  color = "grey20",
+                                  size = rel(0.9)),
+        axis.line.x = element_line(colour = "#333333", 
+                                   size = 0.5,
+                                   linetype = "solid"),
+        axis.ticks.x = element_line(colour = "#333333"),
+        strip.text = element_text(face = "bold",
+                                  colour = "#FFFFFF",
+                                  size = rel(0.6),
+                                  vjust = 1),
+        strip.background = element_rect(fill = "#000000",
+                                        color = "#FFFFFF"))
+
+
+### >> Change facet label colours to match bars ----
+
+# Create a gtable with the grid graphical objects (grobs) for the panel plot
+panel_plot_gtable <- ggplot_gtable(ggplot_build(panel_plot))
+
+# Identify the grobs that define the backround colour for the
+# panel label rectangles
+stripr <- which(grepl('strip-r', panel_plot_gtable$layout$name))
+
+# Specify the colours to be  for the panel labels background fill
+fills <- c(EMS_colour, ED_colour, EWSS_colour)
+
+# Run a loop to replace the grobs with new panel label colours
+k <- 1
+for (i in stripr) {
+  j <- which(grepl('rect',
+                   panel_plot_gtable$grobs[[i]]$grobs[[1]]$childrenOrder))
+  
+  panel_plot_gtable$grobs[[i]]$grobs[[1]]$children[[j]]$gp$fill <- fills[k]
+  
+  k <- k+1
+}
+
+### >> Draw the final plot ----
+grid.draw(panel_plot_gtable)
+```
+
+
